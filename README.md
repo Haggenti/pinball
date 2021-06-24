@@ -6,6 +6,7 @@
 /
 -------------------------------------------
 
+
 ** Features ** :
 - 79% real size of commercials pinballs -> ball mass : 40g
 - Code for Arduino Mega PRO 2560
@@ -19,9 +20,10 @@
 - MosFET solenoid drive
 - PLA 3d printed parts - real pinball mecanical design inspired
 - Hiscores management
-- DMD display
+- DMD display - MAX7912 led matrix * 8
 - Self test function
 - Sounds
 - OpenSource code !
 - ... and more to come
 */
+Stay tuned for updates !
