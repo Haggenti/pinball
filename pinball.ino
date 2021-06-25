@@ -34,18 +34,37 @@
 #include <MD_MAX72xx.h>
 #include <SPI.h>
 
-#define HARDWARE_TYPE MD_MAX72XX::FC16_HW
+
+
+/*
+    GND   MOSI  VCC
+    RST   SCK   MISO
+
+    bleu-blanc  marron bleu
+                vert  
+
+                 53-marron-blanc
+
+
+
+*/
+
+
+
+
+
+#define HARDWARE_TYPE MD_MAX72XX::PAROLA_HW
 #define MAX_DEVICES 8
 #define DATA_PIN  51 // MOSI - DIN
 #define CLK_PIN   52 // SCK - CLK
 #define CS_PIN    53 // SS - CS
 
-struct hiscores{uint16_t score; char* name;};
+struct hiscores{uint16_t score; char name[5];};
 
 // Hardware SPI connection
-//MD_Parola DMD = MD_Parola(HARDWARE_TYPE, CS_PIN, MAX_DEVICES);
+MD_Parola DMD = MD_Parola(HARDWARE_TYPE, CS_PIN, MAX_DEVICES);
 // Arbitrary output pins
- MD_Parola DMD = MD_Parola(HARDWARE_TYPE, DATA_PIN, CLK_PIN, CS_PIN, MAX_DEVICES);
+// MD_Parola DMD = MD_Parola(HARDWARE_TYPE, DATA_PIN, CLK_PIN, CS_PIN, MAX_DEVICES);
  
 
  //DMD stuff
@@ -58,11 +77,8 @@ uint16_t scrollPause = 2000; // in milliseconds
 #define BUF_SIZE  75
 char curMessage[BUF_SIZE] = { "" };
 char newMessage[BUF_SIZE] = { "Pinball machine Ready !" };
+char alphabet[35] = {'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789<'} ;
 bool newMessageAvailable = true;
-
-
-//      DMD.displayText(hi[iii].name, scrollAlign, scrollSpeed, scrollPause, scrollEffect, scrollEffect);
-
 
   //solenoid activation times
   uint32_t fire_sol_ball;
@@ -78,13 +94,13 @@ bool newMessageAvailable = true;
 
 
   // functionnals variables
-  hiscores hi[5];
+  hiscores hi[6];
   long start_time;
-  long lastprint;
   long printduration=1000;
   uint32_t saveball_time=10000;
   uint8_t ballonplayfield=0;
   uint8_t ball;
+  boolean ll=1, al, lr=1, ar, lo=1, ao;
   boolean activate_newball;
   boolean ended=0;
   boolean saveball=0;
@@ -117,7 +133,7 @@ bool newMessageAvailable = true;
 
   uint32_t p_score;
   uint32_t score;
-  char alphabet[37] = {'A','B','C','D','E','F','G','H','I','J','K','L','M','N','O','P','Q','R','S','T','U','V','W','X','Y','Z','0','1','2','3','4','5','6','7','8','9','<'} ;
+
 
   //score values
    uint8_t bonus_mult=1;
@@ -161,6 +177,8 @@ bool newMessageAvailable = true;
   //sling2=38;      // PD7
   //bump1=39        // PG2
   //bump1=40        // PG1
+  //flip1           // PL7
+  //flip2           // PL6
   
 
   //sensors - 22 input sensors
@@ -225,14 +243,21 @@ void setup(){
   DDRD |= (1 << PIN7);
   DDRG |= (1 << PIN2);
   DDRG |= (1 << PIN1);
-
+  DDRL |= (1 << PIN7);
+  DDRL |= (1 << PIN6);
+  
    //read eeprom hiscores
    int eeAddress = 0; //EEPROM address to start reading from
-   for(int i=0; i<5; i++){
+   for(int i=1; i<5; i++){
        EEPROM.get( eeAddress, hi[i] );
        eeAddress+=sizeof(hi[i]);
    }
-   init_scores();
+
+  init_scores();
+  //sort_hiscores();
+  //write_eeprom();
+  enteryourname();
+
 
     uint8_t self=self_check();
     if (self!=0) {
@@ -243,36 +268,21 @@ void setup(){
     }
 
 PORTC |= (1 << PIN5); // disable solenoids VCC 24V
+
 scrollPause=0;
 strcpy(curMessage, newMessage);
-
 DMD.displayText(curMessage, scrollAlign, scrollSpeed, scrollPause, scrollEffect, scrollEffect);
 while(!DMD.displayAnimate()){}
-
- 
 scrollEffect=PA_SCROLL_UP;
 scrollPause=1500;
 DMD.setTextEffect(scrollEffect, scrollEffect);
 DMD.setPause(scrollPause);
-
-        hi[1].name="AAA";
-hi[2].name="BBB";
-hi[3].name="CCC";
-hi[4].name="DDD";
-        
-
-}
+//serial_printhi();
+} //end off setup function
 
 void loop() {
       PORTC |= (1 << PIN5); // disable solenoids VCC 24V
-      sort_hiscores();
     int index=0;
-
-    for(int i=1; i<=4; i++){
-      Serial.print(hi[i].score);
-      Serial.println(hi[i].name);
-        
-    }
       do {
 
         // display hiscores on DMD with t_hi function
@@ -294,11 +304,6 @@ void loop() {
           DMD.setTextEffect(scrollEffect, scrollEffect);
           DMD.setPause(scrollPause);
         }
-
-
-
-
-
         if (index==1) {strcpy(curMessage, "Hiscores");}
         if (index==2) {strcpy(curMessage, hi[1].name);}
         if (index==3) {itoa (hi[1].score,newMessage,10);strcpy(curMessage, newMessage);}
@@ -310,15 +315,7 @@ void loop() {
         if (index==9) {itoa (hi[4].score,newMessage,10);strcpy(curMessage, newMessage);}
         if (index==10) strcpy(curMessage, "Press start button !");
         DMD.displayReset();
-      }
-     
-      
- 
-
-         
-
-
-
+        }
       } while ((PINB & (1<<PB4)));  // wait for start button
 
 
@@ -347,26 +344,35 @@ void loop() {
         start_time=millis();
         fire_sol_ball=millis();
         saveball=1;
-        DMD.print("Saveball active");
         saveball_lock=0;
-        //delay(1000);
-        lastprint=millis();
-        DMD.print("Ball : ");
-        DMD.print(ball);
+        char toprint[]="Ball : ";
+        char ballchar[1];
+        itoa (ball,ballchar,10);
+        strcat(toprint, ballchar);
+        strcpy(curMessage, toprint);
+        DMD.displayText(curMessage, scrollAlign, scrollSpeed, scrollPause, scrollEffect, scrollEffect);
+        DMD.displayReset();
         get_ball();
       }
 
         if (ballonplayfield==0 && saveball) {
         saveball=0; 
         if(saveball_lock==1) saveball_lock=0;
-        lastprint=millis();
         fire_sol_ball=millis();
-        DMD.print("Ball saved !");
+        strcpy(curMessage, "Ball saved !");
+        DMD.displayText(curMessage, PA_CENTER, scrollSpeed, 1500, PA_BLINDS, PA_BLINDS);
+        DMD.displayReset();
         get_ball();
       }
       
-      if ((millis()-start_time)>=saveball_time && saveball==1 && !saveball_lock) {saveball=0;DMD.print("Saveball inactive");} 
+      if ((millis()-start_time)>=saveball_time && saveball==1 && !saveball_lock) {
+        saveball=0;
+        strcpy(curMessage, "Save OFF!");
+        DMD.displayText(curMessage, PA_CENTER, scrollSpeed, 1500, PA_BLINDS, PA_BLINDS);
+
+        } 
       get_ball();
+      DMD.displayAnimate();
       extra_ball_req();
       block_req();
       save_req();
@@ -384,11 +390,16 @@ void loop() {
           
       }
 
-      if (p_score!=score && lastprint>printduration) {
+      if (p_score!=score) {
         p_score=score;
-        //if (DMD.displayAnimate())
-        //DMD.displayText(score, PA_LEFT, 25, 2000, PA_SCROLL_UP, PA_SCROLL_UP);
-        DMD.print(score);
+        itoa (score,newMessage,10);
+        strcpy(curMessage, newMessage);
+        DMD.displayText(curMessage, PA_RIGHT, 25, 0, PA_SCROLL_UP, PA_NO_EFFECT);
+         scrollEffect=PA_SCROLL_LEFT;
+          scrollPause=0;
+          DMD.setTextAlignment(PA_LEFT);
+          DMD.setTextEffect(scrollEffect, scrollEffect);
+          DMD.setPause(scrollPause);
       }
 
       } while (!ended); //loop until ball quota exceded
@@ -396,77 +407,109 @@ void loop() {
     extra_ball1=5000;
     extra_ball2=12000;
     extra_ball3=30000;
-    DMD.print("Game over !");
-    DMD.print("Final score :");
-    DMD.print(score);
-    DMD.print("-*-*-*-*-*-*-*-*");
     PORTC |= (1 << PIN5); // disable solenoids VCC 24V
-
- 
-    //if (score>=hi[4].score) enteryourname();
+    strcpy(curMessage, "Game over !");
+    while(!DMD.displayAnimate()){}
+    strcpy(curMessage, "Final score :");
+    while(!DMD.displayAnimate()){}
+    itoa (score,newMessage,10);
+    strcpy(curMessage, newMessage);
+    while(!DMD.displayAnimate()){}
+    if (score>=hi[4].score) enteryourname();
     delay(1000);    
 }
 
 void init_scores(){
-  for(int i=0; i<5; i++){
-      hi[i].score=i*500;
-      hi[i].name="AAA";
-  }
-  write_eeprom();
+
+  strcpy(hi[1].name,"AAA");
+  hi[1].score=10;
+  strcpy(hi[2].name,"BBB");
+  hi[2].score=20;
+  strcpy(hi[3].name,"CCC");
+  hi[3].score=30;
+  strcpy(hi[4].name,"DDD");
+  hi[4].score=40;
+  strcpy(hi[5].name,"JOE");
+  hi[5].score=50;
 }
 
 void write_eeprom() {
     int eeAddress = 0; 
-   for(int i=0; i<5; i++){
-       EEPROM.put( eeAddress, hi[i] );
+   for(int i=1; i<5; i++){
+       EEPROM.put( eeAddress, hi[i]);
        eeAddress+=sizeof(hi[i]);
-}}
+      }
+}
 
+
+void flips(){
+    al=(PINC & (1<<PC7)); // reads left flip
+    ar=(PINC & (1<<PC6)); // read right flip
+    if(ll==1 && al==0) {ll=al;PORTL |= (1 << PIN7);}
+    if(lr==1 && ar==0) {lr=ar;PORTL |= (1 << PIN6);}
+    if(ll==0 && al==1) {ll=al;PORTL &= ~(1 << PIN7);}
+    if(lr==0 && ar==1) {lr=ar;PORTL &= ~(1 << PIN6);}
+}
 
 
 void enteryourname() {
-  int i=1;
-  int selector=1;
-  DMD.displayText("Hiscore !", PA_CENTER, DMD.getSpeed(), DMD.getPause(), PA_SCROLL_UP, PA_SCROLL_DOWN);
-  DMD.displayText("Name?", PA_CENTER, DMD.getSpeed(), DMD.getPause(), PA_SCROLL_UP, PA_SCROLL_DOWN);
+  int point=0;
+  int selector=0;
+  DMD.displayText("Hiscore !", PA_CENTER, 25, 500, PA_SCROLL_UP, PA_SCROLL_DOWN);
+  while(!DMD.displayAnimate()){}
+  DMD.displayText("Name?", PA_CENTER, 25, 500, PA_SCROLL_UP, PA_SCROLL_DOWN);
+  while(!DMD.displayAnimate()){}
   hi[5].score=score;
+  hi[5].name[0]='A';
   hi[5].name[1]='A';
   hi[5].name[2]='A';
-  hi[5].name[3]='A';
-  boolean ll=1, al, lr=1, ar, lo=1, ao;
+  strcpy(curMessage, alphabet[selector]);
+  DMD.displayText("A", PA_CENTER, DMD.getSpeed(), 0, PA_SCROLL_DOWN , PA_NO_EFFECT );
+  while(!DMD.displayAnimate()){}
+  Serial.println(alphabet[selector]);
+  do{
 
-	do{
       al=(PINC & (1<<PC7)); // reads left flip
       ar=(PINC & (1<<PC6)); // read right flip
       ao=(PINB & (1<<PB4)); // read start button
-            for(int i=0; i<21; i++){
-        if (deb[i]<debmax)  ++deb[i]; // count debounce cycles for each sensor
-          
-      }
-
-    if(ll && !al && selector>1  && deb[20]>=debmax) {
+      ++deb[20];
+      ++deb[21];
+      ++deb[22];
+      DMD.displayAnimate();
+    if(ll && !al && selector>=1  && deb[20]>=debmax) {
       --selector;
       deb[20]=0;
-      DMD.print(alphabet[i]);
-      hi[5].name[i]=alphabet[i];
-      DMD.displayText(hi[5].name, PA_CENTER, DMD.getSpeed(), 0, PA_PRINT, PA_PRINT);
+      DMD.displayText(alphabet[selector], PA_CENTER, DMD.getSpeed(), 0, PA_SCROLL_DOWN , PA_NO_EFFECT );
+      while(!DMD.displayAnimate()){}    
     }
-    if(lr && !ar && selector<37 && deb[21]>=debmax) {
+    if(lr && !ar && selector<35 && deb[21]>=debmax) {
       ++selector;
       deb[21]=0;
-      hi[5].name[i]=alphabet[i];
-      DMD.displayText(hi[5].name, PA_CENTER, DMD.getSpeed(), 0, PA_PRINT, PA_PRINT);
-      DMD.print(alphabet[i]);
+      DMD.displayText(alphabet[selector], PA_CENTER, DMD.getSpeed(), 0, PA_SCROLL_UP , PA_NO_EFFECT );
+      while(!DMD.displayAnimate()){}
     }
     
-  if (lo && !ao && i!=37 && deb[22]>=debmax){++i;deb[22]=0;} 
-  if (lo && !ao && i==37 && i>0 && deb[22]>=debmax){--i;deb[22]=0;}
-	} while (i<3);
+  if (lo && !ao && point!=37 && deb[22]>=debmax){
+    hi[5].name[point]=alphabet[selector];
+    ++point;
+    deb[22]=0;
+    DMD.displayText(alphabet[selector], PA_CENTER, 40, 0, PA_SCROLL_RIGHT , PA_SCROLL_RIGHT );
+    while(!DMD.displayAnimate()){}
+    DMD.displayText(alphabet[selector], PA_CENTER, DMD.getSpeed(), 0, PA_SCROLL_DOWN , PA_NO_EFFECT );
+  while(!DMD.displayAnimate()){}
+  } 
+  if (lo && !ao && point==37 && point>0 && deb[22]>=debmax*10){
+    --point;
+    deb[22]=0;
+  }
 
-
-	//sort hiscores and drop n°5
+  ll=al;
+  lr=ar;
+  lo=ao;
+  } while (point<3);
+  //sort hiscores and drop n°5
   sort_hiscores();
-	write_eeprom();
+  write_eeprom();
 }
   
 
@@ -475,48 +518,55 @@ void enteryourname() {
 void extra_ball_req() {
    if (score>=extra_ball3 && extra_ball3!=0) {
      ++ball_max;
-     DMD.print("Extra ball 1!");
-     lastprint=millis();
+     strcpy(curMessage, "Extra ball 1!");
+     DMD.displayReset();
      extra_ball3=0;
      }
 
   if (score>=extra_ball2 && extra_ball2!=0) {
     ++ball_max;
-    DMD.print("Extra ball 2!");
-    lastprint=millis();
+    strcpy(curMessage, "Extra ball 2!");
+    DMD.displayReset();
     extra_ball2=0;
     }
 
   if (score>=extra_ball1 && extra_ball1!=0) {
     ++ball_max;
-    DMD.print("Extra ball 3!");
-    lastprint=millis();
+    strcpy(curMessage, "Extra ball 3!");
+     DMD.displayReset();
     extra_ball1=0;
     }
 }
 
-void sort_hiscores(){
-  hiscores temp_hi;
+void serial_printhi()  {
+      Serial.println("Hiscores");
+      for(int i=1; i<5; i++) {
+        Serial.print(i);
+        Serial.print(" : ");
+        Serial.print(hi[i].name);
+        Serial.print(" -> ");
+        Serial.println(hi[i].score);
+    }
+}
+
+
+void sort_hiscores() {
+  char temp_hi[3];
   uint16_t temp_sc;
 
-  for(int i=4; i>=1; --i){
+  for(int sortii=0; sortii<5; ++sortii) {
+    for(int sorti=4; sorti>0; --sorti) {
+      if ((hi[sorti].score)<(hi[sorti+1].score)) {
+   
+        strcpy(temp_hi, hi[sorti].name);
+        strcpy(hi[sorti].name, hi[sorti+1].name);
+        strcpy(hi[sorti+1].name,temp_hi);
 
-    if ((hi[i+1].score)>(hi[i].score)){
-
-
-     //strcpy(temp_hi.name, hi[i].name);
-     // strcpy(hi[i].name, hi[i+1].name);
-     // strcpy(hi[i+1].name, temp_hi.name );
-temp_hi.name=hi[i].name;
-hi[i].name=hi[i+1].name;
-hi[i+1].name=temp_hi.name;
-      temp_sc=hi[i].score;
-      hi[i].score=hi[i+1].score;
-      hi[i+1].score=temp_sc;
-
-
+        temp_sc=hi[sorti].score;
+        hi[sorti].score=hi[sorti+1].score;
+        hi[sorti+1].score=temp_sc;
       }
-
+    }
   }
 }
 
@@ -524,37 +574,41 @@ hi[i+1].name=temp_hi.name;
 
 
 void multiball() {
-	// take ramp when balls are blocked to launch multiball !!!!!
-  	if (ballblocked2 && ballblocked1 && ramp_counter==1) {
+  // take ramp when balls are blocked to launch multiball !!!!!
+    if (ballblocked2 && ballblocked1 && ramp_counter==1) {
     if (sol_timer_h1==0){
-    	PORTC |= (1 << PIN4);
-   	 	PORTC |= (1 << PIN3);
-    	sol_timer_h1=millis();
+      PORTC |= (1 << PIN4);
+      PORTC |= (1 << PIN3);
+      sol_timer_h1=millis();
     }
     
     if (((millis()-sol_timer_h1)>soso) && sol_timer_h1!=0) {
-    	PORTC &= ~(1 << PIN4);
-    	PORTC &= ~(1 << PIN3);
-    	ballblocked1=0;
-    	sol_timer_h1=0;
-    	ballblocked2=0;
-    	sol_timer_h2=0;
+      PORTC &= ~(1 << PIN4);
+      PORTC &= ~(1 << PIN3);
+      ballblocked1=0;
+      sol_timer_h1=0;
+      ballblocked2=0;
+      sol_timer_h2=0;
     }  
 
-    if (!ballblocked2 && !ballblocked1) DMD.print("Multi ball activated!");lastprint=millis();
+    if (!ballblocked2 && !ballblocked1) {
+      strcpy(curMessage, "Multi ball ready");
+      DMD.displayReset();
+    }
   }
 }
 
 
 
 void save_req() {
-	// 4 passages each to activate save ball
+  // 4 passages each to activate save ball
   if ( left_flip_counter>=4 && right_flip_counter>=4) {
     right_flip_counter=0;
     left_flip_counter=0;
     saveball=1;
     saveball_lock=1;
-    DMD.print("Save ball award !");lastprint=millis();
+    strcpy(curMessage, "Save ball award !");
+    DMD.displayReset();
   }
 
 }
@@ -569,7 +623,8 @@ void block_req(){
         drop_counter=0;
         ft1_counter=0;
         ft2_counter=0;
-        DMD.print("Block a ball !");lastprint=millis();
+        strcpy(curMessage, "Block a ball !");
+        DMD.displayReset();
      }
 
   if (drop_counter==2 && ft1_counter==1 && ft2_counter==1 && block2==0 && !ballblocked2) {
@@ -577,7 +632,8 @@ void block_req(){
         drop_counter=0;
         ft1_counter=0;
         ft2_counter=0;
-        DMD.print("Block a ball !");lastprint=millis();
+        strcpy(curMessage, "Block a ball !");
+        DMD.displayReset();
      }
 
 
@@ -589,10 +645,10 @@ void global(){
   aright=(PINA & (1<<PA5)); // reads right loose sensor
   alflp=(PINA & (1<<PA6)); // reads left flip lane
   arflp=(PINA & (1<<PA7)); // reads right flip lane
-  if (lleft && !aleft && deb[16]>=debmax) {score=+looseway_value;++left_loose_counter;deb[16]=0;DMD.print("Left passage");lastprint=millis();} 
-  if (lright && !aright && deb[17]>=debmax) {score=+looseway_value;++right_loose_counter;deb[17]=0;DMD.print("Right passage");lastprint=millis();} 
-  if (llflp && !alflp && deb[18]>=debmax) {score=+flipway_value;++left_flip_counter;deb[18]=0;DMD.print("Left flip passage");lastprint=millis();} 
-  if (lrflp && !arflp && deb[19]>=debmax) {score=+flipway_value;++right_flip_counter;deb[19]=0;DMD.print("Right flip passage");lastprint=millis();} 
+  if (lleft && !aleft && deb[16]>=debmax) {score=+looseway_value;++left_loose_counter;deb[16]=0;} 
+  if (lright && !aright && deb[17]>=debmax) {score=+looseway_value;++right_loose_counter;deb[17]=0;} 
+  if (llflp && !alflp && deb[18]>=debmax) {score=+flipway_value;++left_flip_counter;deb[18]=0;} 
+  if (lrflp && !arflp && deb[19]>=debmax) {score=+flipway_value;++right_flip_counter;deb[19]=0;} 
   lleft=aleft;
   lright=aright;
   llflp=alflp;
@@ -608,13 +664,14 @@ void global(){
 void passage(){
   apass1=(PINA & (1<<PA2)); // reads pass 1
   apass2=(PINA & (1<<PA3)); // reads pass 2
-  if (lpass1 && !apass1 && deb[14]>=debmax) {score=+pass_value; pass1_light=1;deb[14]=0;DMD.print("coridor A");lastprint=millis();} 
-  if (lpass2 && !apass2 && deb[15]>=debmax) {score=+pass_value; pass2_light=1;deb[15]=0;DMD.print("coridor B");lastprint=millis();}
+  if (lpass1 && !apass1 && deb[14]>=debmax) {score=+pass_value; pass1_light=1;deb[14]=0;} 
+  if (lpass2 && !apass2 && deb[15]>=debmax) {score=+pass_value; pass2_light=1;deb[15]=0;}
   if (pass1_light && pass2_light && bonus_mult<4) {
     ++bonus_mult;
-    DMD.print("Advance bonus:X");
+    strcpy(curMessage, "Advance bonus:X");
+    DMD.displayReset();
     DMD.print(bonus_mult);
-    lastprint=millis();
+
     pass1_light=0;
     pass2_light=0;
   }
@@ -632,9 +689,8 @@ void ramp() {
       deb[13]=0;
     } 
     lramp=aramp;
-    DMD.print("Ramp : ");
-    DMD.print(ramp_value);
-    lastprint=millis();
+    strcpy(curMessage, "Ramp !");
+    DMD.displayReset();
 }
 
 
@@ -642,8 +698,8 @@ void fixed_target(){
 
   aft1=(PINH & (1<<PH0)); // reads ft1
   aft2=(PIND & (1<<PD3)); // reads ft2
-  if (lft1 && !aft1 && deb[11]>=debmax) {score=+ft1_value;++ft1_counter;deb[11]=0;DMD.print("fixed target 1 hit");lastprint=millis();} 
-  if (lft2 && !aft2 && deb[12]>=debmax) {score=+ft2_value;++ft2_counter;deb[12]=0;DMD.print("fixed target 2 hit");lastprint=millis();}
+  if (lft1 && !aft1 && deb[11]>=debmax) {score=+ft1_value;++ft1_counter;deb[11]=0;} 
+  if (lft2 && !aft2 && deb[12]>=debmax) {score=+ft2_value;++ft2_counter;deb[12]=0;}
   lft1=aft1;
   lft2=aft2;
 }
@@ -660,8 +716,6 @@ void bumper(){
     score=+(bumper_value*bonus_mult);
     ++bump_counter;
     deb[9]=0;
-    DMD.print("bumper 1 hit");
-    lastprint=millis();
   } 
 
   if (lbmp2 && !abmp2 && deb[10]>=debmax) {
@@ -670,8 +724,6 @@ void bumper(){
     score=+(bumper_value*bonus_mult);
     ++bump_counter;
     deb[10]=0;
-    DMD.print("bumper 2 hit");
-    lastprint=millis();
   } 
 
   if (((millis()-sol_timer_b1)>soso) && sol_timer_b1!=0) {PORTG &= ~(1 << PIN2);sol_timer_b1=0;} 
@@ -690,8 +742,6 @@ void sling(){
     sol_timer_s1=millis();
     score=score+sling_value*bonus_mult;
     deb[7]=0;
-    DMD.print("Slingshot1");
-    lastprint=millis();
   } 
 
   if ((!lsling2 && asling2 && deb[8]>=debmax && sol_timer_s2==0)) {
@@ -699,8 +749,6 @@ void sling(){
     sol_timer_s2=millis();
     score=score+sling_value*bonus_mult;
     deb[8]=0;
-    DMD.print("Slingshot2");
-    lastprint=millis();
   } 
 
   lsling1=asling1;
@@ -716,16 +764,20 @@ void drop_target(){
   ads1 = (PINJ & (1<<PJ1)); // reads drop¹
   ads2 = (PINJ & (1<<PJ0)); // reads drop2
   ads3 = (PINH & (1<<PH1)); // reads drop3
-  if (lds1 && !ads1 && deb[4]>=debmax) {score=score+drop_target_value;deb[4]=0;DMD.print("Drop target 1 hit");lastprint=millis();}
-  if (lds2 && !ads2 && deb[5]>=debmax) {score=score+drop_target_value;deb[5]=0;DMD.print("Drop target 2 hit");lastprint=millis();}
-  if (lds3 && !ads3 && deb[6]>=debmax) {score=score+drop_target_value;deb[6]=0;DMD.print("Drop target 2 hit");lastprint=millis();}
+  if (lds1 && !ads1 && deb[4]>=debmax) {score=score+drop_target_value;deb[4]=0;}
+  if (lds2 && !ads2 && deb[5]>=debmax) {score=score+drop_target_value;deb[5]=0;}
+  if (lds3 && !ads3 && deb[6]>=debmax) {score=score+drop_target_value;deb[6]=0;}
   if (!ads1 && !ads2 && !ads3) {
     // do something special ........ when all target down
-    DMD.print("All targets down, Rearm targets");lastprint=millis();
     PORTC |= (1 << PIN1);
     sol_timer_rearm=millis();
     ++drop_counter;
-    if (drop_counter>5) {score=score+drop_target_extra_value;drop_counter=0;DMD.print("5 Rows of traget down ! - extra bonus !");lastprint=millis();}
+    if (drop_counter>5) {
+      score=score+drop_target_extra_value;
+      drop_counter=0;
+      strcpy(curMessage, "5 Rows of traget down ! - extra bonus !");
+      DMD.displayReset();
+    }
   }
   lds1=ads1;
   lds2=ads2;
@@ -742,11 +794,16 @@ void hole1 () {
     ballblocked1=1;
     score+=hole1_value;
     ++h1_counter;
-    DMD.print("Hole 1 hit");lastprint=millis();
+    strcpy(curMessage, "Hole 1 hit");
+    DMD.displayReset();
     if (block1) {
       --ballonplayfield;
-      DMD.print("Ball H1 bloqued !");lastprint=millis();
-      if (ballblocked1 && ballblocked2) {DMD.print("Take ramp to multiball !");lastprint=millis();}
+      strcpy(curMessage, "Ball H1 bloqued !");
+      DMD.displayReset();
+      if (ballblocked1 && ballblocked2) {
+      strcpy(curMessage, "Take ramp to multiball !");
+      DMD.displayReset();
+      }
       get_ball();
       block1=0;
       block2=0;
@@ -773,11 +830,16 @@ void hole2 () {
     ballblocked2=1;
     score+=hole2_value;
     ++h2_counter;
-    DMD.print("Hole 2 hit");lastprint=millis();
+    strcpy(curMessage, "Hole 2 hit");
+    DMD.displayReset();
     if (block2) {
       --ballonplayfield;
-      DMD.print("Ball H2 bloqued !");lastprint=millis();
-      if (ballblocked1 && ballblocked2) {DMD.print("Take ramp to multiball !");lastprint=millis();}
+      strcpy(curMessage, "Ball H2 bloqued !");
+      DMD.displayReset();
+      if (ballblocked1 && ballblocked2) {
+      strcpy(curMessage, "Take ramp to multiball !");
+      DMD.displayReset();
+      }
       get_ball();
       block1=0;
       block2=0;
@@ -789,8 +851,8 @@ void hole2 () {
     }
   }
   if (ballblocked2 && !block2) {
-  	if (sol_timer_h2==0) sol_timer_h2=millis();
-  	if (((millis()-sol_timer_h2)>700) && ((millis()-sol_timer_h2)<(soso*3)) && sol_timer_h2!=0) {PORTC |= (1 << PIN3);} //activate solenoid after soso 700 ms
+    if (sol_timer_h2==0) sol_timer_h2=millis();
+    if (((millis()-sol_timer_h2)>700) && ((millis()-sol_timer_h2)<(soso*3)) && sol_timer_h2!=0) {PORTC |= (1 << PIN3);} //activate solenoid after soso 700 ms
     if (((millis()-sol_timer_h2)>(700+soso)) && sol_timer_h2!=0) {PORTC &= ~(1 << PIN3);ballblocked2=0;sol_timer_h2=0;} //desactivate solenoid after soso 700+soso ms 
   }
   lhole2=ahole2;
@@ -799,7 +861,7 @@ void hole2 () {
 
 void get_ball() {
   if (ballonplayfield==0 && ended==0 ) {
-    DMD.print("launch ball");
+    //DMD.print("launch ball");
     activate_newball=1;
     ++ballonplayfield;
   }
@@ -842,32 +904,32 @@ void reset_variables(){
   sol_timer_s2=0;
   sol_timer_b1=0;
   sol_timer_b2=0;
-	ballonplayfield=0;
-	ball=0;
-	saveball=0;
-	block1=0;
-	block2=0;
-	lds1=0;
-	lds2=0;
-	lds3=0;
-	lft1=0;
-	lft2=0;
-	lbmp1=0;
-	lbmp2=0;
-	lsling1=0;
-	lsling2=0;
-	lramp=0;
-	lpass1=0; 
-	pass1_light=0;
-	lpass2=0; 
-	pass2_light=0;
-	lleft=0;
-	lright=0;
-	llflp=0;
-	lrflp=0;
-	bonus_mult=1;
-	p_score=0;
-	score=0;
+  ballonplayfield=0;
+  ball=0;
+  saveball=0;
+  block1=0;
+  block2=0;
+  lds1=0;
+  lds2=0;
+  lds3=0;
+  lft1=0;
+  lft2=0;
+  lbmp1=0;
+  lbmp2=0;
+  lsling1=0;
+  lsling2=0;
+  lramp=0;
+  lpass1=0; 
+  pass1_light=0;
+  lpass2=0; 
+  pass2_light=0;
+  lleft=0;
+  lright=0;
+  llflp=0;
+  lrflp=0;
+  bonus_mult=1;
+  p_score=0;
+  score=0;
   drop_counter=0;
   ramp_counter=0;
   bump_counter=0;
@@ -887,8 +949,9 @@ void fall_drain() {
       adrain=(PINB & (1<<PB7)); // reads PB7 -- drain sensor
       if (ldrain && !adrain && deb[1]>=debmax) {
         deb[1]=0;
-        DMD.print("Ball lost :-(");
-        --ballonplayfield;
+      strcpy(curMessage, "Ball lost");
+      DMD.displayReset();
+      --ballonplayfield;
   
 }
 
