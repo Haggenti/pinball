@@ -1,28 +1,9 @@
-#include <avr/io.h>     // .h contenant les registres SFR
+#include <avr/io.h>
 #include <EEPROM.h>
 
 #include <MD_Parola.h>
 #include <MD_MAX72xx.h>
 #include <SPI.h>
-
-
-
-/*
-    GND   MOSI  VCC
-    RST   SCK   MISO
-
-    bleu-blanc  marron bleu
-                vert  
-
-                 53-marron-blanc
-
-
-
-*/
-
-
-
-
 
 #define HARDWARE_TYPE MD_MAX72XX::PAROLA_HW
 #define MAX_DEVICES 8
@@ -61,7 +42,6 @@ bool newMessageAvailable = true;
   uint32_t sol_timer_b1;
   uint32_t sol_timer_b2;
   const uint8_t soso=65;
-
 
   // functionnals variables
   hiscores hi[6];
@@ -103,7 +83,6 @@ bool newMessageAvailable = true;
 
   uint32_t p_score;
   uint32_t score;
-
 
   //score values
    uint8_t bonus_mult=1;
@@ -342,6 +321,7 @@ void loop() {
 
         } 
       get_ball();
+      flips();
       DMD.displayAnimate();
       extra_ball_req();
       block_req();
@@ -411,7 +391,6 @@ void write_eeprom() {
       }
 }
 
-
 void flips(){
     al=(PINC & (1<<PC7)); // reads left flip
     ar=(PINC & (1<<PC6)); // read right flip
@@ -438,7 +417,6 @@ void enteryourname() {
   while(!DMD.displayAnimate()){}
   Serial.println(alphabet[selector]);
   do{
-
       al=(PINC & (1<<PC7)); // reads left flip
       ar=(PINC & (1<<PC6)); // read right flip
       ao=(PINB & (1<<PB4)); // read start button
@@ -482,7 +460,6 @@ void enteryourname() {
   write_eeprom();
 }
   
-
 
 //earn extra ball when score reach 3 levels
 void extra_ball_req() {
@@ -541,8 +518,6 @@ void sort_hiscores() {
 }
 
 
-
-
 void multiball() {
   // take ramp when balls are blocked to launch multiball !!!!!
     if (ballblocked2 && ballblocked1 && ramp_counter==1) {
@@ -569,7 +544,6 @@ void multiball() {
 }
 
 
-
 void save_req() {
   // 4 passages each to activate save ball
   if ( left_flip_counter>=4 && right_flip_counter>=4) {
@@ -582,7 +556,6 @@ void save_req() {
   }
 
 }
-
 
 
 
@@ -605,8 +578,6 @@ void block_req(){
         strcpy(curMessage, "Block a ball !");
         DMD.displayReset();
      }
-
-
 }
 
 
