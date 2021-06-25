@@ -1,32 +1,3 @@
-/*
------ P I N B A L L  F I R M W A R E ------
-/
-/           By Joe - 2021                 /
-/
--------------------------------------------
-
-** Features ** :
-
-- 79% real size of commercials pinballs -> ball mass : 40g
-- Code for Arduino Mega PRO 2560
-- non blocking operations
-- AVR-C FAST fall edge detection sensor
-- Custom debounce algo
-- Multiball management
-- Saveball function
-- Objects : 2 Bumpers, 2 Slingshots, 2 Pass-ways, 2 Fixed targets, 1 row of 3 drop targets, 1 ramp, 2 holes
-- Low cost electronics : optical & mecanical sensors
-- MosFET solenoid drive
-- PLA 3d printed parts - real pinball mecanical design inspired
-- Hiscores management
-- DMD display
-- Self test function
-- Sounds
-- OpenSource code !
-- ... and more to come
-
-*/
-
 #include <avr/io.h>     // .h contenant les registres SFR
 #include <EEPROM.h>
 
@@ -66,7 +37,6 @@ MD_Parola DMD = MD_Parola(HARDWARE_TYPE, CS_PIN, MAX_DEVICES);
 // Arbitrary output pins
 // MD_Parola DMD = MD_Parola(HARDWARE_TYPE, DATA_PIN, CLK_PIN, CS_PIN, MAX_DEVICES);
  
-
  //DMD stuff
 uint8_t scrollSpeed = 25;    // default frame delay value
 textEffect_t scrollEffect = PA_SCROLL_LEFT;
