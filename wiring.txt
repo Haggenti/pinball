@@ -12,17 +12,17 @@ CLK_PIN   52 -> SCK - CLK
 CS_PIN    53 -> SS - CS
 
 solenoids outputs (9)
-power_relay=32; // PC5
+power_relay=32;  // PC5
 hole1_sol=33;   // PC4
 hole2_sol=34;   // PC3
 new_ball_sol=35;// PC2
 drop_sol=36;    // PC1
 sling1=37;      // PC0
 sling2=38;      // PD7
-bump1=39        // PG2
-bump1=40        // PG1
-flip1           // PL7
-flip2           // PL6
+bumper 1-> 39        // PG2
+bumper 2-> 40        // PG1
+flip1-> pin 42  --- PL7
+flip2-> pin 43  --- PL6
   
 
  sensors - 22 input sensors
