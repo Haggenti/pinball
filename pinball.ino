@@ -5,7 +5,7 @@
 #include <MD_MAX72xx.h>
 #include <SPI.h>
 
-#define HARDWARE_TYPE MD_MAX72XX::PAROLA_HW
+#define HARDWARE_TYPE MD_MAX72XX::FC16_HW
 #define MAX_DEVICES 8
 #define DATA_PIN  51 // MOSI - DIN
 #define CLK_PIN   52 // SCK - CLK
