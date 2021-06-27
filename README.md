@@ -19,7 +19,7 @@
 
 Game play features
 - Hiscores management
-- Multiball managementSpe
+- Multiball management
 - Saveball function
 - Objects : 2 Bumpers, 2 Slingshots, 2 Pass-ways, 2 Fixed targets, 1 row of 3 drop targets, 1 ramp, 2 holes
 
