@@ -1,5 +1,6 @@
-# pinball
-/*
+# APF - Arduino Pinball Firmware
+
+
 ----- P I N B A L L  F I R M W A R E ------
 /
 /           By Joe - 2021                 /
@@ -7,23 +8,27 @@
 -------------------------------------------
 
 
-** Features ** :
-- 79% real size of commercials pinballs -> ball mass : 40g
+** Specs **
+- Sized to 79% of commercial machines -> ball mass : 40g
 - Code for Arduino Mega PRO 2560
-- non blocking operations
-- AVR-C FAST fall edge detection sensor
+- Non blocking code
+- AVR-C FAST fall edge detection functions
 - Custom debounce algo
-- Multiball management
-- Saveball function
-- Objects : 2 Bumpers, 2 Slingshots, 2 Pass-ways, 2 Fixed targets, 1 row of 3 drop targets, 1 ramp, 2 holes
 - Low cost electronics : optical & mecanical sensors
-- MosFET solenoid drive
+- MosFET solenoids drive with PWM settings
 - PLA 3d printed parts - real pinball mecanical design inspired
-- Hiscores management
 - DMD display - MAX7912 led matrix * 8
 - Self test function
-- Sounds
-- OpenSource code !
-- ... and more to come
-*/
-Stay tuned for updates !
+
+
+Game play features
+- Hiscores management
+- Multiball managementSpe
+- Saveball function
+- Objects : 2 Bumpers, 2 Slingshots, 2 Pass-ways, 2 Fixed targets, 1 row of 3 drop targets, 1 ramp, 2 holes
+
+To Do:
+Add Sound module
+Add light managment
+Fix display
+Bugs fix (always)
