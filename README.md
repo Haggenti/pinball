@@ -1,11 +1,7 @@
 # APF - Arduino Pinball Firmware
 
 
------ P I N B A L L  F I R M W A R E ------
-/
-/           By Joe - 2021                 /
-/
--------------------------------------------
+-- D I Y  P I N B A L L  F I R M W A R E --
 
 
 ** Specs **
@@ -28,7 +24,7 @@ Game play features
 - Objects : 2 Bumpers, 2 Slingshots, 2 Pass-ways, 2 Fixed targets, 1 row of 3 drop targets, 1 ramp, 2 holes
 
 To Do:
-Add Sound module
-Add light managment
-Fix display
-Bugs fix (always)
+- Add Sound module
+- Add light function
+- Fix display
+- Bugs fix (always)
