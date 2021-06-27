@@ -24,7 +24,7 @@ uint16_t scrollPause = 2000; // in milliseconds
 // Global message buffers shared by Serial and Scrolling functions
 #define BUF_SIZE  75
 char curMessage[BUF_SIZE] = { "" };
-char newMessage[BUF_SIZE] = { "Pinball machine Ready !" };
+char newMessage[BUF_SIZE] = { "Pinball Ready !" };
 char alphabet[38] = {"ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789<"} ;
 bool newMessageAvailable = true;
 
@@ -43,7 +43,7 @@ bool newMessageAvailable = true;
   // pwm variables
 
   uint8_t f_duty=100; // power of flippers in percent
-  uint8_t s_duty=75;  // power of slingshots in percent
+  uint8_t s_duty=100;  // power of slingshots in percent
 
   boolean f1_active,f1_state;
   boolean f2_active,f2_state;
@@ -69,7 +69,6 @@ bool newMessageAvailable = true;
 
   hiscores hi[6];
   long start_time;
-  long printduration=1000;
   uint32_t saveball_time=10000;
   uint8_t ballonplayfield=0;
   uint8_t ball;
@@ -257,8 +256,6 @@ void loop() {
       PORTC |= (1 << PIN5); // disable solenoids VCC 24V
     int index=0;
       do {
-
-        // display hiscores on DMD with t_hi function
         
       if(DMD.displayAnimate()) {
         ++index;
@@ -404,7 +401,9 @@ void loop() {
     itoa (score,newMessage,10);
     strcpy(curMessage, newMessage);
     while(!DMD.displayAnimate()){}
-   // if (score>=hi[4].score) enteryourname();
+    if (score>=hi[4].score) enteryourname();
+    strcpy(curMessage, newMessage);
+    DMD.displayText(curMessage, scrollAlign, scrollSpeed, scrollPause, scrollEffect, scrollEffect);
     delay(1000);    
 }
 
@@ -521,7 +520,7 @@ void enteryourname() {
 void extra_ball_req() {
    if (score>=extra_ball3 && extra_ball3!=0) {
      ++ball_max;
-     strcpy(curMessage, "Extra ball 1!");
+     strcpy(curMessage, "Extra ball 3!");
      DMD.displayReset();
      extra_ball3=0;
      }
@@ -535,7 +534,7 @@ void extra_ball_req() {
 
   if (score>=extra_ball1 && extra_ball1!=0) {
     ++ball_max;
-    strcpy(curMessage, "Extra ball 3!");
+    strcpy(curMessage, "Extra ball 1!");
      DMD.displayReset();
     extra_ball1=0;
     }
