@@ -38,38 +38,14 @@ bool newMessageAvailable = true;
   uint32_t sol_timer_s2;
   uint32_t sol_timer_b1;
   uint32_t sol_timer_b2;
-  const uint8_t soso=65;
+  const uint8_t soso=50;
 
-  // pwm variables
-
-  uint8_t f_duty=100; // power of flippers in percent
-  uint8_t s_duty=100;  // power of slingshots in percent
-
-  boolean f1_active,f1_state;
-  boolean f2_active,f2_state;
-  uint8_t f1_c_on,f1_c_off,f2_c_on,f2_c_off;
-  const uint8_t pwm_f_length=20;
-  uint8_t f2_on_per=(20*f_duty)/100;
-  uint8_t f1_on_per=f2_on_per;
-  uint8_t f2_off_per=pwm_f_length-f2_on_per;
-  uint8_t f1_off_per=pwm_f_length-f1_on_per;
-
-  boolean s1_active,s1_state;
-  boolean s2_active,s2_state;
-  uint8_t s1_c_on,s1_c_off,s2_c_on,s2_c_off;
-  const uint8_t pwm_s_length=20;
-  uint8_t s2_on_per=(20*s_duty)/100;
-  uint8_t s1_on_per=s2_on_per;
-  uint8_t s2_off_per=pwm_s_length-s2_on_per;
-  uint8_t s1_off_per=pwm_s_length-s1_on_per;
-
-
-
+ 
   // functionnals variables
 
   hiscores hi[6];
   long start_time;
-  uint32_t saveball_time=10000;
+  const uint32_t saveball_time=10000;
   uint8_t ballonplayfield=0;
   uint8_t ball;
   boolean empty=1;
@@ -430,20 +406,15 @@ void write_eeprom() {
 }
 
 void flips(){
-    al=(PINC & (1<<PC7)); // reads left flip
-    ar=(PINC & (1<<PC6)); // read right flip
-    if(ll==1 && al==0) {ll=al;f2_active=1;}
-    if(lr==1 && ar==0) {lr=ar;f1_active=1;}
-    if(ll==0 && al==1) {ll=al;f2_active=0;}
-    if(lr==0 && ar==1) {lr=ar;f1_active=0;}
-    pwm_f1();
-    pwm_f2();
+    al=(PINC & (1<<PC6)); // reads left flip
+    ar=(PINC & (1<<PC7)); // read right flip
+    if(ll==1 && al==0) {ll=al;PORTL |= (1 << PIN7);}
+    if(lr==1 && ar==0) {lr=ar;PORTL |= (1 << PIN6);}
+    if(ll==0 && al==1) {ll=al;PORTL &= ~(1 << PIN7);}
+    if(lr==0 && ar==1) {lr=ar;PORTL &= ~(1 << PIN6);}
+
 
 }
-
-
-
-
 
 
 
@@ -462,8 +433,8 @@ void enteryourname() {
   DMD.displayText(hi[5].name, PA_LEFT, DMD.getSpeed(), 0, PA_PRINT , PA_NO_EFFECT );
   while(!DMD.displayAnimate()){} 
   do{
-      al=(PINC & (1<<PC7)); // reads left flip
-      ar=(PINC & (1<<PC6)); // read right flip
+      ar=(PINC & (1<<PC7)); // reads left flip
+      al=(PINC & (1<<PC6)); // read right flip
       ao=(PINB & (1<<PB4)); // read start button
       ++deb[20];
       ++deb[21];
@@ -607,7 +578,7 @@ void save_req() {
     left_flip_counter=0;
     saveball=1;
     saveball_lock=1;
-    strcpy(curMessage, "Save ball award !");
+    strcpy(curMessage, "Save ball ACTIVE !");
     DMD.displayReset();
     empty=1;
   }
@@ -666,10 +637,12 @@ void passage(){
   if (lpass2 && !apass2 && deb[15]>=debmax) {score=+pass_value; pass2_light=1;deb[15]=0;}
   if (pass1_light && pass2_light && bonus_mult<4) {
     ++bonus_mult;
-    strcpy(curMessage, "Advance bonus:X");
     DMD.displayReset();
-    DMD.print(bonus_mult);
-
+    char toprint[]="Bonus X";
+    char bonuschar[1];
+    itoa (bonus_mult,bonuschar,10);
+    strcat(toprint, bonuschar);
+    strcpy(curMessage, toprint);
     pass1_light=0;
     pass2_light=0;
   }
@@ -736,16 +709,16 @@ void sling(){
   asling1=(PIND & (1<<PD0)); // reads sling1
   asling2=(PINA & (1<<PA0)); // reads sling2
   if ((lsling1 && !asling1 && deb[7]>=debmax && sol_timer_s1==0)) {
-    //PORTC |= (1 << PIN0);
-    s1_active=1;
+    PORTC |= (1 << PIN0);
+    
     sol_timer_s1=millis();
     score=score+sling_value*bonus_mult;
     deb[7]=0;
   } 
 
-  if ((!lsling2 && asling2 && deb[8]>=debmax && sol_timer_s2==0)) {
-    //PORTD |= (1 << PIN7);
-    s2_active=1;
+  if ((lsling2 && !asling2 && deb[8]>=debmax && sol_timer_s2==0)) {
+    PORTD |= (1 << PIN7);
+    
     sol_timer_s2=millis();
     score=score+sling_value*bonus_mult;
     deb[8]=0;
@@ -754,11 +727,9 @@ void sling(){
 
   lsling1=asling1;
   lsling2=asling2;
-  if (((millis()-sol_timer_s1)>(soso/2)) && sol_timer_s1!=0) {s1_active=0;sol_timer_s1=0;} //desactivate solenoid  
-  if (((millis()-sol_timer_s2)>(soso/2)) && sol_timer_s2!=0) {s2_active=1;sol_timer_s2=0;} //desactivate solenoid  
+  if (((millis()-sol_timer_s1)>soso) && sol_timer_s1!=0) {PORTC &= ~(1 << PIN0);sol_timer_s1=0;} //desactivate solenoid  
+  if (((millis()-sol_timer_s2)>soso) && sol_timer_s2!=0) {PORTD &= ~(1 << PIN7);sol_timer_s2=0;} //desactivate solenoid  
 
-pwm_s1();
-pwm_s2();
 
 }
 
@@ -799,15 +770,15 @@ void hole1 () {
     ballblocked1=1;
     score+=hole1_value;
     ++h1_counter;
-    strcpy(curMessage, "Hole 1 hit");
-    DMD.displayReset();
     if (block1) {
       --ballonplayfield;
       strcpy(curMessage, "Ball H1 bloqued !");
       DMD.displayReset();
+      while(!DMD.displayAnimate()){}
       if (ballblocked1 && ballblocked2) {
       strcpy(curMessage, "Take ramp to multiball !");
       DMD.displayReset();
+      while(!DMD.displayAnimate()){}
       }
       get_ball();
       block1=0;
@@ -835,15 +806,15 @@ void hole2 () {
     ballblocked2=1;
     score+=hole2_value;
     ++h2_counter;
-    strcpy(curMessage, "Hole 2 hit");
-    DMD.displayReset();
     if (block2) {
       --ballonplayfield;
       strcpy(curMessage, "Ball H2 bloqued !");
       DMD.displayReset();
+      while(!DMD.displayAnimate()){}
       if (ballblocked1 && ballblocked2) {
       strcpy(curMessage, "Take ramp to multiball !");
       DMD.displayReset();
+      while(!DMD.displayAnimate()){}
       }
       get_ball();
       block1=0;
@@ -978,40 +949,4 @@ void DMDdisp(){
 
 
 
-
-void pwm_f1(){
-  
-   if (!f1_state) ++f1_c_off;
-   if (f1_state) ++f1_c_on;
-   if (f1_active && !f1_state && f1_c_off>f1_off_per) {f1_state=1;PORTL |= (1 << PIN7);f1_c_off=0;}
-   if (f1_state && f1_c_on>f1_on_per) {f1_state=0;PORTL &= ~(1 << PIN7);f1_c_on=0;}
-  
-}
-
-void pwm_f2(){
-  
-   if (!f2_state) ++f2_c_off;
-   if (f2_state) ++f2_c_on;
-   if (f2_active && !f2_state && f2_c_off>f2_off_per) {f2_state=1;PORTL |= (1 << PIN6);f2_c_off=0;}
-   if (f2_state && f2_c_on>f2_on_per) {f2_state=0;PORTL &= ~(1 << PIN6);f2_c_on=0;}
-  
-}
-
-void pwm_s1(){
-  
-   if (!s1_state) ++s1_c_off;
-   if (s1_state) ++s1_c_on;
-   if (s1_active && !s1_state && s1_c_off>s1_off_per) {s1_state=1;PORTC |= (1 << PIN0);s1_c_off=0;}
-   if (s1_state && s1_c_on>s1_on_per) {s1_state=0;PORTC &= ~(1 << PIN0);s1_c_on=0;}
-  
-}
-
-void pwm_s2(){
-  
-   if (!s2_state) ++s2_c_off;
-   if (s2_state) ++s2_c_on;
-   if (s2_active && !s2_state && s2_c_off>s2_off_per) {s2_state=1;PORTD |= (1 << PIN7);s2_c_off=0;}
-   if (s2_state && s2_c_on>s2_on_per) {s2_state=0;PORTD &= ~(1 << PIN7);s2_c_on=0;}
-  
-}
 
