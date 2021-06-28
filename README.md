@@ -11,7 +11,7 @@
 - AVR-C FAST fall edge detection functions
 - Custom debounce algo
 - Low cost electronics : optical & mecanical sensors
-- MosFET solenoids drive with PWM settings
+- MosFET solenoids drive
 - PLA 3d printed parts - real pinball mecanical design inspired
 - DMD display - MAX7912 led matrix * 8
 - Self test function
