@@ -5,6 +5,10 @@
 #include <MD_MAX72xx.h>
 #include <SPI.h>
 
+
+#include "SoftwareSerial.h"
+#include "DFRobotDFPlayerMini.h" // Requisite Library
+
 #define HARDWARE_TYPE MD_MAX72XX::FC16_HW
 #define MAX_DEVICES 8
 #define DATA_PIN  45 // MOSI - DIN - marron
@@ -12,6 +16,12 @@
 #define CS_PIN    47 // SS - CS - blanc
 
 struct hiscores{uint16_t score; char name[5];};
+
+
+SoftwareSerial mySoftwareSerial(8, 9); // RX, TX
+
+DFRobotDFPlayerMini sound;
+
 
 MD_Parola DMD = MD_Parola(HARDWARE_TYPE, DATA_PIN, CLK_PIN, CS_PIN, MAX_DEVICES);
  
@@ -158,6 +168,18 @@ bool newMessageAvailable = true;
 void setup(){
    Serial.begin(57600);
    DMD.begin();
+   mySoftwareSerial.begin(9600);
+   
+  if (!sound.begin(mySoftwareSerial)) {  //Use softwareSerial to communicate with mp3.
+    Serial.println(F("Unable to begin:"));
+    Serial.println(F("1.Please recheck the connection!"));
+    Serial.println(F("2.Please insert the SD card!"));
+    
+  }
+
+  
+  sound.volume(30);  //Set volume value. From 0 to 30
+  sound.play(1);  //Play the first mp3
 
   //pinmode define input/output
   pinMode( start_button, INPUT_PULLUP);
@@ -288,6 +310,7 @@ void loop() {
       if (ball==ball_max && ballonplayfield==0 && !saveball) ended=1;
       if (ballonplayfield==0 && ball<(ball_max) && !saveball) {
         ++ball; 
+        sound.play(1);
         start_time=millis();
         fire_sol_ball=millis();
         saveball=1;
@@ -710,6 +733,7 @@ void sling(){
   asling2=(PINA & (1<<PA0)); // reads sling2
   if ((lsling1 && !asling1 && deb[7]>=debmax && sol_timer_s1==0)) {
     PORTC |= (1 << PIN0);
+    sound.play(2);
     
     sol_timer_s1=millis();
     score=score+sling_value*bonus_mult;
