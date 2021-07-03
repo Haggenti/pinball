@@ -174,12 +174,10 @@ void setup(){
     Serial.println(F("Unable to begin:"));
     Serial.println(F("1.Please recheck the connection!"));
     Serial.println(F("2.Please insert the SD card!"));
-    
   }
-
   
   sound.volume(30);  //Set volume value. From 0 to 30
-  sound.play(1);  //Play the first mp3
+
 
   //pinmode define input/output
   pinMode( start_button, INPUT_PULLUP);
@@ -223,10 +221,9 @@ void setup(){
        eeAddress+=sizeof(hi[i]);
    }
 
-  init_scores();
+  //init_scores();
   //sort_hiscores();
   //write_eeprom();
-  //enteryourname();
 
 
     uint8_t self=self_check();
@@ -315,7 +312,7 @@ void loop() {
         fire_sol_ball=millis();
         saveball=1;
         saveball_lock=0;
-        char toprint[]="Ball : ";
+        char toprint[]="Ball ";
         char ballchar[1];
         itoa (ball,ballchar,10);
         strcat(toprint, ballchar);
@@ -330,7 +327,7 @@ void loop() {
         saveball=0; 
         if(saveball_lock==1) saveball_lock=0;
         fire_sol_ball=millis();
-        strcpy(curMessage, "Ball saved !");
+        strcpy(curMessage, "Shoot again");
         empty=1;
         DMD.displayText(curMessage, PA_CENTER, scrollSpeed, 1500, PA_BLINDS, PA_BLINDS);
         DMD.displayReset();
@@ -392,7 +389,7 @@ void loop() {
     DMD.setTextAlignment(PA_CENTER);
     DMD.setTextEffect(scrollEffect, scrollEffect);
     DMD.setPause(scrollPause);
-    strcpy(curMessage, "Scored");
+    strcpy(curMessage, "Scored:");
     while(!DMD.displayAnimate()){}
      DMD.displayReset();
       DMD.setTextAlignment(PA_CENTER);
@@ -444,9 +441,9 @@ void flips(){
 void enteryourname() {
   int point=0;
   int selector=0;
-  DMD.displayText("Hiscore !", PA_CENTER, 25, 500, PA_SCROLL_UP, PA_SCROLL_DOWN);
+  DMD.displayText("Hiscore !", PA_CENTER, 25, 1000, PA_BLINDS, PA_BLINDS);
   while(!DMD.displayAnimate()){}
-  DMD.displayText("Enter your initials", PA_CENTER, 25, 0, PA_SCROLL_LEFT, PA_SCROLL_LEFT);
+  DMD.displayText("Enter your name", PA_CENTER, 25, 0, PA_SCROLL_LEFT, PA_SCROLL_LEFT);
   while(!DMD.displayAnimate()){}
   hi[5].score=score;
   hi[5].name[0]='A';
@@ -490,7 +487,7 @@ void enteryourname() {
     
       
   } 
-  if (lo && !ao && selector==36 && point>0 && deb[22]>=debmax*10){
+  if (lo && !ao && selector==36 && point>0 && deb[22]>=debmax*7){
     hi[5].name[point]=0;
     --point;
     deb[22]=0;
@@ -517,6 +514,7 @@ void extra_ball_req() {
      strcpy(curMessage, "Extra ball 3!");
      DMD.displayReset();
      extra_ball3=0;
+     empty=0;
      }
 
   if (score>=extra_ball2 && extra_ball2!=0) {
@@ -524,6 +522,7 @@ void extra_ball_req() {
     strcpy(curMessage, "Extra ball 2!");
     DMD.displayReset();
     extra_ball2=0;
+    empty=0;
     }
 
   if (score>=extra_ball1 && extra_ball1!=0) {
@@ -531,17 +530,7 @@ void extra_ball_req() {
     strcpy(curMessage, "Extra ball 1!");
      DMD.displayReset();
     extra_ball1=0;
-    }
-}
-
-void serial_printhi()  {
-      Serial.println("Hiscores");
-      for(int i=1; i<5; i++) {
-        Serial.print(i);
-        Serial.print(" : ");
-        Serial.print(hi[i].name);
-        Serial.print(" -> ");
-        Serial.println(hi[i].score);
+    empty=0;
     }
 }
 
@@ -601,7 +590,11 @@ void save_req() {
     left_flip_counter=0;
     saveball=1;
     saveball_lock=1;
-    strcpy(curMessage, "Save ball ACTIVE !");
+    strcpy(curMessage, "Save LIGHTED");
+    scrollPause=1500;
+    DMD.setTextAlignment(PA_CENTER);
+  //  DMD.setTextEffect(scrollEffect, scrollEffect);
+    DMD.setPause(scrollPause);
     DMD.displayReset();
     empty=1;
   }
@@ -661,7 +654,7 @@ void passage(){
   if (pass1_light && pass2_light && bonus_mult<4) {
     ++bonus_mult;
     DMD.displayReset();
-    char toprint[]="Bonus X";
+    char toprint[]="Mult X";
     char bonuschar[1];
     itoa (bonus_mult,bonuschar,10);
     strcat(toprint, bonuschar);
@@ -683,8 +676,6 @@ void ramp() {
       deb[13]=0;
     } 
     lramp=aramp;
-    strcpy(curMessage, "Ramp !");
-    DMD.displayReset();
 }
 
 
@@ -783,8 +774,6 @@ void drop_target(){
   lds2=ads2;
   lds3=ads3;
 }
-;
-
 
 
 void hole1 () {
@@ -864,8 +853,8 @@ void get_ball() {
     activate_newball=1;
     ++ballonplayfield;
   }
-  if((millis()-fire_sol_ball>1400) && activate_newball){PORTC |= (1 << PIN2);activate_newball=0;sol_timer_ball=millis();}
-  if (((millis()-sol_timer_ball)>(soso+50)) && sol_timer_ball!=0) {PORTC &= ~(1 << PIN2);sol_timer_ball=0;} //desactivate solenoid after soso delay
+  if((millis()-fire_sol_ball>1700) && activate_newball){PORTC |= (1 << PIN2);activate_newball=0;sol_timer_ball=millis();}
+  if (((millis()-sol_timer_ball)>(soso+100)) && sol_timer_ball!=0) {PORTC &= ~(1 << PIN2);sol_timer_ball=0;} //desactivate solenoid after soso delay
 }
 
 
@@ -894,6 +883,7 @@ return 0;
 }
 
 void reset_variables(){
+  ball_max=3;
   ended=0;
   sol_timer_rearm=0;
   sol_timer_ball=0;
@@ -953,22 +943,6 @@ void fall_drain() {
 }
 
 ldrain=adrain;
-}
-
-
-void DMDdisp(){
-
-  if (DMD.displayAnimate())
-  {
-    if (newMessageAvailable)
-    {
-      strcpy(curMessage, newMessage);
-      newMessageAvailable = false;
-    }
-    DMD.displayReset();
-  }
-
-
 }
 
 
