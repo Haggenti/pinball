@@ -48,6 +48,7 @@ bool newMessageAvailable = true;
   uint32_t sol_timer_s2;
   uint32_t sol_timer_b1;
   uint32_t sol_timer_b2;
+  uint32_t sol_kick;
   const uint8_t soso=50;
 
  
@@ -87,7 +88,9 @@ bool newMessageAvailable = true;
   boolean lright=1, aright;
   boolean llflp=1, alflp;
   boolean lrflp=1, arflp;
-  uint16_t deb[21];
+  boolean lkick=1, akick;
+  boolean kick=0;
+  uint16_t deb[23];
   uint16_t debmax=200;
 
   uint32_t p_score;
@@ -98,19 +101,19 @@ bool newMessageAvailable = true;
    uint8_t ball_max=3;
    uint16_t hole1_value=50;
    uint16_t hole2_value=50;
-   uint16_t bumper_value=100;
-   uint16_t drop_target_value=75;
-   uint16_t drop_target_extra_value=750;
+   uint16_t bumper_value=60;
+   uint16_t drop_target_value=40;
+   uint16_t drop_target_extra_value=250;
    uint16_t extra_ball1=5000;
    uint16_t extra_ball2=12000;
    uint16_t extra_ball3=30000;
-   uint16_t ft1_value=50;
-   uint16_t ft2_value=50;
-   uint16_t sling_value=50;
+   uint16_t ft1_value=20;
+   uint16_t ft2_value=20;
+   uint16_t sling_value=30;
    uint16_t ramp_value=50;
-   uint16_t pass_value=50;
-   uint16_t looseway_value=500;
-   uint16_t flipway_value=40;
+   uint16_t pass_value=30;
+   uint16_t looseway_value=90;
+   uint16_t flipway_value=30;
 
  // activation counters
   uint16_t drop_counter;
@@ -124,6 +127,7 @@ bool newMessageAvailable = true;
   uint16_t right_loose_counter;
   uint16_t left_flip_counter;
   uint16_t right_flip_counter;
+  uint16_t kick_counter;
 
   //solenoids : 9 outputs
   //power_relay=32; // PC5
@@ -135,12 +139,14 @@ bool newMessageAvailable = true;
   //sling2=38;      // PD7
   //bump1=39        // PG2
   //bump1=40        // PG1
-  //flip1           // PL7
-  //flip2           // PL6
+  //KICKBACK=41     // PG0
+  //flip1=42        // PL7
+  //flip2=43        // PL6
   
 
   //sensors - 22 input sensors
- 
+
+  
   const uint8_t start_button=10;  //PB4
   const uint8_t hole1_sen=11;     //PB5
   const uint8_t hole2_sen=12;     //PB6
@@ -163,7 +169,7 @@ bool newMessageAvailable = true;
   const uint8_t rflp_sen=29;      //PA7
   const uint8_t flip_l_sen=30;    //PC7
   const uint8_t flip_r_sen=31;    //PC6
-
+  const uint8_t kick_pin=7;           //PH4
 
 void setup(){
    Serial.begin(57600);
@@ -180,6 +186,7 @@ void setup(){
 
 
   //pinmode define input/output
+  
   pinMode( start_button, INPUT_PULLUP);
   pinMode( hole1_sen, INPUT_PULLUP);
   pinMode( hole2_sen, INPUT_PULLUP);
@@ -202,6 +209,7 @@ void setup(){
   pinMode( rflp_sen, INPUT_PULLUP);
   pinMode( flip_l_sen, INPUT_PULLUP);
   pinMode( flip_r_sen, INPUT_PULLUP);
+  pinMode( kick_pin, INPUT);
   DDRC |= (1 << PIN5);
   DDRC |= (1 << PIN4);
   DDRC |= (1 << PIN3);
@@ -211,6 +219,7 @@ void setup(){
   DDRD |= (1 << PIN7);
   DDRG |= (1 << PIN2);
   DDRG |= (1 << PIN1);
+  DDRG |= (1 << PIN0);
   DDRL |= (1 << PIN7);
   DDRL |= (1 << PIN6);
   
@@ -345,6 +354,7 @@ void loop() {
       DMD.displayAnimate();
       extra_ball_req();
       block_req();
+      kick_req();
       save_req();
       hole1();
       hole2();
@@ -355,8 +365,9 @@ void loop() {
       sling();
       //ramp();
       global();
-      for(int i=0; i<21; i++){
-        if (deb[i]<debmax)  ++deb[i]; // count debounce cycles for each sensor
+      kickback();
+      for(int i=0; i<=22; i++){
+        if (deb[i]<debmax*100)  ++deb[i]; // count debounce cycles for each sensor
           
       }
 
@@ -397,7 +408,9 @@ void loop() {
     itoa (score,newMessage,10);
     strcpy(curMessage, newMessage);
     while(!DMD.displayAnimate()){}
-    if (score>=hi[4].score) enteryourname();
+    if (score>=hi[4].score) {
+      //enteryourname();
+    }
     strcpy(curMessage, newMessage);
     DMD.displayText(curMessage, scrollAlign, scrollSpeed, scrollPause, scrollEffect, scrollEffect);
     delay(1000);    
@@ -602,6 +615,19 @@ void save_req() {
 }
 
 
+void kick_req(){
+  if (left_loose_counter>2 ) {
+    kick=1;
+    left_loose_counter=0;
+    strcpy(curMessage, "Kick is lit");
+    DMD.displayReset();
+    empty=1;
+  }
+
+}
+
+
+
 
 //to enable lock ball, kill 2 rows of drop targets and touch each fixed target once
 void block_req(){
@@ -649,8 +675,8 @@ void global(){
 void passage(){
   apass1=(PINA & (1<<PA2)); // reads pass 1
   apass2=(PINA & (1<<PA3)); // reads pass 2
-  if (lpass1 && !apass1 && deb[14]>=debmax) {score=+pass_value; pass1_light=1;deb[14]=0;} 
-  if (lpass2 && !apass2 && deb[15]>=debmax) {score=+pass_value; pass2_light=1;deb[15]=0;}
+  if (lpass1 && !apass1 && deb[14]>=debmax) {score+=pass_value; pass1_light=1;deb[14]=0;} 
+  if (lpass2 && !apass2 && deb[15]>=debmax) {score+=pass_value; pass2_light=1;deb[15]=0;}
   if (pass1_light && pass2_light && bonus_mult<4) {
     ++bonus_mult;
     DMD.displayReset();
@@ -683,11 +709,36 @@ void fixed_target(){
 
   aft1=(PINH & (1<<PH0)); // reads ft1
   aft2=(PIND & (1<<PD3)); // reads ft2
-  if (lft1 && !aft1 && deb[11]>=debmax) {score=+ft1_value;++ft1_counter;deb[11]=0;} 
-  if (lft2 && !aft2 && deb[12]>=debmax) {score=+ft2_value;++ft2_counter;deb[12]=0;}
+  if (lft1 && !aft1 && deb[11]>=debmax) {score+=ft1_value;++ft1_counter;deb[11]=0;} 
+  if (lft2 && !aft2 && deb[12]>=debmax) {score+=ft2_value;++ft2_counter;deb[12]=0;}
   lft1=aft1;
   lft2=aft2;
 }
+
+
+void kickback(){
+  akick=(PINH & (1<<PH4)); // reads kicksensor
+
+  if (lkick && !akick && deb[22]>=debmax && kick) {
+    PORTG |= (1 << PIN0);
+    sol_kick=millis();
+    score+=50;
+    ++kick_counter;
+    deb[22]=0;
+    kick=0;
+  } 
+
+  if (((millis()-sol_kick)>soso) && sol_kick!=0) {PORTG &= ~(1 << PIN0);sol_kick=0;} 
+
+
+  lkick=akick;
+
+}
+
+
+
+
+
 
 
 void bumper(){
@@ -695,18 +746,19 @@ void bumper(){
   abmp1=(PIND & (1<<PD2)); // reads bump1
   abmp2=(PIND & (1<<PD1)); // reads bump2
 
-  if (lbmp1 && !abmp1 && deb[9]>=debmax) {
+  if (lbmp1 && !abmp1 && deb[9]>=700 && sol_timer_b1==0) {
     PORTG |= (1 << PIN2);
     sol_timer_b1=millis();
-    score=+(bumper_value*bonus_mult);
+    score+=(bumper_value*bonus_mult);
     ++bump_counter;
     deb[9]=0;
+
   } 
 
   if (lbmp2 && !abmp2 && deb[10]>=debmax) {
     PORTG |= (1 << PIN1);
     sol_timer_b2=millis();
-    score=+(bumper_value*bonus_mult);
+    score+=(bumper_value*bonus_mult);
     ++bump_counter;
     deb[10]=0;
   } 
@@ -930,6 +982,7 @@ void reset_variables(){
   right_loose_counter=0;
   left_flip_counter=0;
   right_flip_counter=0;
+  kick_counter=0;
 
 }
 
